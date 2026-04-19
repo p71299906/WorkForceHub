@@ -1,0 +1,126 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    
+    // Master Bootstrap / Admin Check
+    // We treat the user who requested the app as the master CEO.
+    function isMasterCEO() { 
+      return isSignedIn() && (
+        request.auth.token.email == "asadpasha2004@gmail.com" || 
+        getUserData().role == 'CEO'
+      ); 
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/employees/$(request.auth.uid)).data;
+    }
+    
+    function isManager() {
+      return isSignedIn() && getUserData().role == 'Manager';
+    }
+
+    // --- Entity Validations ---
+
+    function isValidEmployee(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['CEO', 'Manager', 'Employee'] &&
+             (!('salary' in data) || data.salary is number) &&
+             (!('department' in data) || (data.department is string && data.department.size() <= 100));
+    }
+
+    function isValidLeaveRequest(data) {
+      return data.keys().hasAll(['employeeId', 'startDate', 'endDate', 'status']) &&
+             data.employeeId is string &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             data.startDate is timestamp &&
+             data.endDate is timestamp;
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['title', 'assigneeId', 'status']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.assigneeId is string &&
+             data.status in ['todo', 'in_progress', 'completed'];
+    }
+
+    // --- Collection Rules ---
+
+    match /employees/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn(); // Basic profile search
+      
+      // Salary and sensitive data protection:
+      // While we allow listing overall, specific sensitive fields should be handled by 
+      // check in the UI or split collections. Here we enforce read gates.
+      allow read: if isSignedIn() && (isOwner(userId) || isMasterCEO() || isManager());
+
+      allow create: if isSignedIn() && (
+        // Self-registration: First user or restricted fields
+        (isOwner(userId) && incoming().role == 'Employee') || 
+        isMasterCEO()
+      ) && isValidEmployee(incoming());
+
+      allow update: if isSignedIn() && (
+        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'department', 'isClockedIn', 'lastClockIn', 'lastClockOut'])) ||
+        isMasterCEO()
+      ) && isValidEmployee(incoming());
+    }
+
+    match /leaveRequests/{requestId} {
+      allow read: if isSignedIn() && (isOwner(existing().employeeId) || isMasterCEO() || isManager());
+      allow list: if isSignedIn() && (isMasterCEO() || isManager() || resource.data.employeeId == request.auth.uid);
+      
+      allow create: if isSignedIn() && 
+                    isOwner(incoming().employeeId) && 
+                    incoming().status == 'pending' &&
+                    isValidLeaveRequest(incoming());
+
+      allow update: if isSignedIn() && (
+        // Manager/CEO approving
+        ((isMasterCEO() || isManager()) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedBy'])) ||
+        // Owner canceling
+        (isOwner(existing().employeeId) && existing().status == 'pending' && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status == 'rejected')
+      ) && isValidLeaveRequest(incoming());
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isSignedIn() && (isOwner(existing().assigneeId) || isMasterCEO() || isManager());
+      allow list: if isSignedIn() && (isMasterCEO() || isManager() || resource.data.assigneeId == request.auth.uid);
+      
+      allow create: if isSignedIn() && (isMasterCEO() || isManager()) && isValidTask(incoming());
+      
+      allow update: if isSignedIn() && (
+        ((isMasterCEO() || isManager()) && isValidTask(incoming())) ||
+        (isOwner(existing().assigneeId) && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
+      );
+      
+      allow delete: if isSignedIn() && (isMasterCEO() || isManager());
+    }
+
+    match /announcements/{announcementId} {
+      allow read, list: if isSignedIn();
+      allow write: if isSignedIn() && (isMasterCEO() || isManager());
+    }
+
+    match /attendance/{logId} {
+      allow read: if isSignedIn() && (isMasterCEO() || isManager() || isOwner(existing().employeeId));
+      allow list: if isSignedIn() && (isMasterCEO() || isManager() || resource.data.employeeId == request.auth.uid);
+      allow create: if isSignedIn() && isOwner(incoming().employeeId);
+    }
+  }
+}

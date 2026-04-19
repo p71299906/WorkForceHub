@@ -1,0 +1,107 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee Profile",
+      "description": "Stores user profile data and roles.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["CEO", "Manager", "Employee"] },
+        "department": { "type": "string" },
+        "salary": { "type": "number" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "isClockedIn": { "type": "boolean" },
+        "lastClockIn": { "type": "string", "format": "date-time" },
+        "lastClockOut": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "LeaveRequest": {
+      "title": "Leave Request",
+      "description": "Requests for time off.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "type": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "reason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "approvedBy": { "type": "string" }
+      },
+      "required": ["employeeId", "startDate", "endDate", "status"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Tasks assigned to employees.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "assigneeId": { "type": "string" },
+        "assigneeName": { "type": "string" },
+        "managerId": { "type": "string" },
+        "managerName": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "in_progress", "completed"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "assigneeId", "status"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Company-wide announcements.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "authorId"]
+    },
+    "AttendanceLog": {
+      "title": "Attendance Log",
+      "description": "Clock in/out events.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "type": { "type": "string", "enum": ["clock_in", "clock_out"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["employeeId", "type", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/employees/{userId}": {
+      "schema": "Employee",
+      "description": "Employee profiles keyed by Auth UID."
+    },
+    "/leaveRequests/{requestId}": {
+      "schema": "LeaveRequest",
+      "description": "Individual leave requests."
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Tasks assigned to employees."
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Company-wide messages."
+    },
+    "/attendance/{logId}": {
+      "schema": "AttendanceLog",
+      "description": "Audit trail of attendance spikes."
+    }
+  }
+}

@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-glass-bg: rgba(255, 255, 255, 0.1);
+  --color-glass-border: rgba(255, 255, 255, 0.2);
+  --color-text-main: #ffffff;
+  --color-text-dim: rgba(255, 255, 255, 0.7);
+  --color-accent-indigo: #6366f1;
+  --color-success-green: #34d399;
+}
+
+@layer base {
+  body {
+    @apply min-h-screen bg-slate-950 text-text-main font-sans selection:bg-accent-indigo selection:text-white;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-glass-bg backdrop-blur-xl border border-glass-border;
+  }
+
+  .glass-card {
+    @apply bg-glass-bg backdrop-blur-xl border border-glass-border rounded-3xl p-6 shadow-2xl shadow-black/20;
+  }
+
+  .glass-button {
+    @apply px-6 py-2 rounded-xl font-bold transition-all duration-200 active:scale-95 disabled:opacity-50;
+  }
+
+  .glass-input {
+    @apply bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-accent-indigo/50 transition-all;
+  }
+}
+
+/* Custom scrollbar for better theme integration */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
